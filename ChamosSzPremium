@@ -1,0 +1,1416 @@
+-- Taste für Menü
+local TOGGLE_KEY = Enum.KeyCode.R
+
+local player = game.Players.LocalPlayer
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+-- Funktion Humanoid holen (Respawn fix)
+local function getHumanoid()
+	local character = player.Character or player.CharacterAdded:Wait()
+	return character:WaitForChild("Humanoid")
+end
+
+local humanoid = getHumanoid()
+
+-- Variablen
+local flying = false
+local flySpeed = 50
+
+--== GUI ERSTELLEN ==--
+
+local gui = Instance.new("ScreenGui")
+gui.ResetOnSpawn = false
+gui.Parent = player.PlayerGui
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 260, 0, 150)
+frame.Position = UDim2.new(1, -280, 1, -180) -- Unten rechts
+frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+frame.BorderSizePixel = 0
+frame.Visible = true
+frame.Parent = gui
+
+local corner = Instance.new("UICorner", frame)
+corner.CornerRadius = UDim.new(0,12)
+
+-- Header
+local header = Instance.new("TextLabel")
+header.Size = UDim2.new(1, 0, 0, 32)
+header.BackgroundColor3 = Color3.fromRGB(110, 100, 255)
+header.Text = "FLY MENU V2"
+header.TextColor3 = Color3.fromRGB(255,255,255)
+header.TextSize = 20
+header.Font = Enum.Font.GothamBold
+header.Parent = frame
+
+Instance.new("UICorner", header).CornerRadius = UDim.new(0,12)
+
+-- Fly Toggle Button
+local flyButton = Instance.new("TextButton")
+flyButton.Size = UDim2.new(1, -20, 0, 35)
+flyButton.Position = UDim2.new(0,10,0,45)
+flyButton.BackgroundColor3 = Color3.fromRGB(40,40,40)
+flyButton.TextColor3 = Color3.fromRGB(255,255,255)
+flyButton.Text = "Fly: OFF"
+flyButton.TextSize = 20
+flyButton.Font = Enum.Font.GothamBold
+flyButton.Parent = frame
+
+Instance.new("UICorner", flyButton).CornerRadius = UDim.new(0,10)
+
+-- Speed Label
+local speedLabel = Instance.new("TextLabel")
+speedLabel.Size = UDim2.new(1, 0, 0, 20)
+speedLabel.Position = UDim2.new(0,0,0,90)
+speedLabel.BackgroundTransparency = 1
+speedLabel.Text = "Speed:"
+speedLabel.TextColor3 = Color3.fromRGB(255,255,255)
+speedLabel.Font = Enum.Font.GothamBold
+speedLabel.TextSize = 16
+speedLabel.Parent = frame
+
+-- Slider Background
+local sliderBack = Instance.new("Frame")
+sliderBack.Size = UDim2.new(1, -40, 0, 8)
+sliderBack.Position = UDim2.new(0,20,0,120)
+sliderBack.BackgroundColor3 = Color3.fromRGB(60,60,60)
+sliderBack.Parent = frame
+sliderBack.BorderSizePixel = 0
+
+Instance.new("UICorner", sliderBack).CornerRadius = UDim.new(0,4)
+
+-- Slider Button
+local sliderButton = Instance.new("Frame")
+sliderButton.Size = UDim2.new(0,14,0,14)
+sliderButton.Position = UDim2.new(0.25, -7, -0.25, 0)
+sliderButton.BackgroundColor3 = Color3.fromRGB(160,140,255)
+sliderButton.Parent = sliderBack
+sliderButton.BorderSizePixel = 0
+
+Instance.new("UICorner", sliderButton).CornerRadius = UDim.new(1,0)
+
+--== FLY SYSTEM ==--
+
+local bodyVel = nil
+
+local function startFly()
+	bodyVel = Instance.new("BodyVelocity")
+	bodyVel.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+	bodyVel.Velocity = Vector3.new(0,0,0)
+	bodyVel.Parent = player.Character:WaitForChild("HumanoidRootPart")
+
+	RunService.RenderStepped:Connect(function()
+		if flying then
+			local move = Vector3.new()
+
+			if UIS:IsKeyDown(Enum.KeyCode.W) then
+				move = move + workspace.CurrentCamera.CFrame.LookVector
+			end
+			if UIS:IsKeyDown(Enum.KeyCode.S) then
+				move = move - workspace.CurrentCamera.CFrame.LookVector
+			end
+			if UIS:IsKeyDown(Enum.KeyCode.A) then
+				move = move - workspace.CurrentCamera.CFrame.RightVector
+			end
+			if UIS:IsKeyDown(Enum.KeyCode.D) then
+				move = move + workspace.CurrentCamera.CFrame.RightVector
+			end
+
+			bodyVel.Velocity = move * flySpeed
+		end
+	end)
+end
+
+local function stopFly()
+	if bodyVel then
+		bodyVel:Destroy()
+		bodyVel = nil
+	end
+end
+
+-- Fly Toggle
+flyButton.MouseButton1Click:Connect(function()
+	flying = not flying
+
+	if flying then
+		flyButton.Text = "Fly: ON"
+		flyButton.BackgroundColor3 = Color3.fromRGB(100,80,255)
+		startFly()
+	else
+		flyButton.Text = "Fly: OFF"
+		flyButton.BackgroundColor3 = Color3.fromRGB(40,40,40)
+		stopFly()
+	end
+end)
+
+-- Slider Movement
+local dragging = false
+
+sliderButton.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = true
+	end
+end)
+
+UIS.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = false
+	end
+end)
+
+UIS.InputChanged:Connect(function(input)
+	if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+		local pos = math.clamp((input.Position.X - sliderBack.AbsolutePosition.X) / sliderBack.AbsoluteSize.X, 0, 1)
+		sliderButton.Position = UDim2.new(pos, -7, -0.25, 0)
+		flySpeed = math.floor(pos * 150) -- max 150 speed
+	end
+end)
+
+-- Respawn fix
+player.CharacterAdded:Connect(function()
+	humanoid = getHumanoid()
+	if flying then
+		startFly()
+	end
+end)
+
+-- Menü Toggle (Taste R)
+UIS.InputBegan:Connect(function(input, gp)
+	if gp then return end
+	if input.KeyCode == TOGGLE_KEY then
+		frame.Visible = not frame.Visible
+	end
+end)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+-- Taste zum Öffnen
+local TOGGLE_KEY = Enum.KeyCode.T
+
+local player = game.Players.LocalPlayer
+local UIS = game:GetService("UserInputService")
+
+-- Respawn-fähiger Humanoid Getter
+local function getHumanoid()
+	local character = player.Character or player.CharacterAdded:Wait()
+	return character:WaitForChild("Humanoid")
+end
+
+local humanoid = getHumanoid()
+
+-- Speed Variablen
+local speedValue = 16
+local maxSpeed = 200
+
+--== GUI ERSTELLEN ==--
+
+local gui = Instance.new("ScreenGui")
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 260, 0, 170)
+frame.Position = UDim2.new(1, -280, 1, -360) -- ◀ ÜBER DEM FLY MENÜ
+frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+frame.BorderSizePixel = 0
+frame.Visible = true
+frame.Parent = gui
+
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0,12)
+
+-- Header
+local header = Instance.new("TextLabel")
+header.Size = UDim2.new(1, 0, 0, 32)
+header.BackgroundColor3 = Color3.fromRGB(110, 100, 255)
+header.Text = "SPEED MENU V2"
+header.TextColor3 = Color3.fromRGB(255,255,255)
+header.TextSize = 20
+header.Font = Enum.Font.GothamBold
+header.Parent = frame
+Instance.new("UICorner", header).CornerRadius = UDim.new(0,12)
+
+-- Speed Label
+local label = Instance.new("TextLabel")
+label.Size = UDim2.new(1, -20, 0, 25)
+label.Position = UDim2.new(0,10,0,45)
+label.BackgroundTransparency = 1
+label.Text = "Speed:"
+label.TextColor3 = Color3.fromRGB(255,255,255)
+label.Font = Enum.Font.GothamBold
+label.TextSize = 18
+label.Parent = frame
+
+-- Slider Background
+local sliderBack = Instance.new("Frame")
+sliderBack.Size = UDim2.new(1, -40, 0, 8)
+sliderBack.Position = UDim2.new(0,20,0,80)
+sliderBack.BackgroundColor3 = Color3.fromRGB(60,60,60)
+sliderBack.BorderSizePixel = 0
+sliderBack.Parent = frame
+Instance.new("UICorner", sliderBack).CornerRadius = UDim.new(0,4)
+
+-- Slider Button
+local sliderButton = Instance.new("Frame")
+sliderButton.Size = UDim2.new(0,14,0,14)
+sliderButton.Position = UDim2.new(0, -7, -0.4, 0)
+sliderButton.BackgroundColor3 = Color3.fromRGB(160,140,255)
+sliderButton.BorderSizePixel = 0
+sliderButton.Parent = sliderBack
+Instance.new("UICorner", sliderButton).CornerRadius = UDim.new(1,0)
+
+-- Textbox für Speed Eingabe
+local speedBox = Instance.new("TextBox")
+speedBox.Size = UDim2.new(1, -40, 0, 35)
+speedBox.Position = UDim2.new(0,20,0,110)
+speedBox.PlaceholderText = "Speed eingeben..."
+speedBox.Text = ""
+speedBox.TextColor3 = Color3.fromRGB(255,255,255)
+speedBox.BackgroundColor3 = Color3.fromRGB(40,40,40)
+speedBox.TextSize = 18
+speedBox.Font = Enum.Font.GothamBold
+speedBox.Parent = frame
+Instance.new("UICorner", speedBox).CornerRadius = UDim.new(0,10)
+
+--== FUNKTIONEN ==--
+
+local function applySpeed(v)
+	v = math.clamp(v, 0, maxSpeed)
+	speedValue = v
+	humanoid.WalkSpeed = v
+end
+
+-- Slider Bewegung
+local dragging = false
+
+sliderButton.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = true
+	end
+end)
+
+UIS.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = false
+	end
+end)
+
+UIS.InputChanged:Connect(function(input)
+	if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+		local pos = math.clamp((input.Position.X - sliderBack.AbsolutePosition.X) / sliderBack.AbsoluteSize.X, 0, 1)
+		sliderButton.Position = UDim2.new(pos, -7, -0.4, 0)
+		applySpeed(math.floor(pos * maxSpeed))
+		speedBox.Text = tostring(speedValue)
+	end
+end)
+
+-- Textbox → Speed setzen
+speedBox.FocusLost:Connect(function()
+	local number = tonumber(speedBox.Text)
+	if number then
+		applySpeed(number)
+		local ratio = number / maxSpeed
+		sliderButton.Position = UDim2.new(ratio, -7, -0.4, 0)
+	end
+end)
+
+-- Respawn fix
+player.CharacterAdded:Connect(function()
+	humanoid = getHumanoid()
+	applySpeed(speedValue)
+end)
+
+-- Menü ein/ausblenden mit Taste T
+UIS.InputBegan:Connect(function(input, gp)
+	if gp then return end
+	if input.KeyCode == TOGGLE_KEY then
+		frame.Visible = not frame.Visible
+	end
+end)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+--[[  
+    MINI-WIDE UTILITY PANEL
+    Position: LEFT MIDDLE
+    Width: 260px
+
+    Features:
+    - Teleport Distance Input
+    - Teleport Directions (Forward, Backward, Up, Down)
+    - Infinity Jump
+    - Freecam Toggle
+    - Gravity Slider
+    - Immun Button (ForceField + Auto-Heal)
+    - R = Menü ein/ausblenden
+]]
+
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local player = Players.LocalPlayer
+local char
+local hum
+local cam = workspace.CurrentCamera
+
+local freecamEnabled = false
+local infinityJump = false
+local immuneEnabled = false
+local teleportDirection = "Forward"
+local teleportDistance = 10
+
+-- Respawn handling
+local function loadChar()
+	char = player.Character or player.CharacterAdded:Wait()
+	hum = char:WaitForChild("Humanoid")
+end
+loadChar()
+player.CharacterAdded:Connect(loadChar)
+
+---------------------------------------------------------------------
+-- UI CREATION
+---------------------------------------------------------------------
+
+local screen = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+screen.ResetOnSpawn = false
+screen.Name = "UtilityMenu"
+
+local frame = Instance.new("Frame", screen)
+frame.Size = UDim2.new(0, 260, 0, 320)
+frame.Position = UDim2.new(0, 10, 0.5, -160) -- LEFT MIDDLE
+frame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+frame.BorderSizePixel = 0
+
+local uiCorner = Instance.new("UICorner", frame)
+uiCorner.CornerRadius = UDim.new(0, 10)
+
+local uiList = Instance.new("UIListLayout", frame)
+uiList.Padding = UDim.new(0, 6)
+uiList.FillDirection = Enum.FillDirection.Vertical
+uiList.HorizontalAlignment = Enum.HorizontalAlignment.Center
+uiList.VerticalAlignment = Enum.VerticalAlignment.Top
+
+---------------------------------------------------------------------
+-- HELPER: Create Button
+---------------------------------------------------------------------
+local function makeButton(text)
+	local b = Instance.new("TextButton")
+	b.Size = UDim2.new(0, 240, 0, 32)
+	b.Text = text
+	b.TextColor3 = Color3.fromRGB(255,255,255)
+	b.BackgroundColor3 = Color3.fromRGB(35,35,45)
+	b.BorderSizePixel = 0
+	Instance.new("UICorner", b).CornerRadius = UDim.new(0, 8)
+	return b
+end
+
+---------------------------------------------------------------------
+-- TELEPORT DISTANCE INPUT
+---------------------------------------------------------------------
+local distBox = Instance.new("TextBox")
+distBox.Size = UDim2.new(0, 240, 0, 32)
+distBox.Text = "Teleport Distance (10)"
+distBox.PlaceholderText = "Enter number"
+distBox.BackgroundColor3 = Color3.fromRGB(35,35,45)
+distBox.TextColor3 = Color3.fromRGB(255,255,255)
+distBox.BorderSizePixel = 0
+Instance.new("UICorner", distBox).CornerRadius = UDim.new(0, 8)
+distBox.Parent = frame
+
+distBox.FocusLost:Connect(function()
+	local num = tonumber(distBox.Text)
+	if num then teleportDistance = num end
+	distBox.Text = "Teleport Distance ("..teleportDistance..")"
+end)
+
+---------------------------------------------------------------------
+-- TELEPORT DIRECTION
+---------------------------------------------------------------------
+local directions = {"Forward","Backward","Up","Down"}
+
+local tpDirBtn = makeButton("Direction: Forward")
+tpDirBtn.Parent = frame
+
+tpDirBtn.MouseButton1Click:Connect(function()
+	local i = table.find(directions, teleportDirection)
+	i = i + 1
+	if i > #directions then i = 1 end
+	teleportDirection = directions[i]
+	tpDirBtn.Text = "Direction: "..teleportDirection
+end)
+
+---------------------------------------------------------------------
+-- TELEPORT BUTTON
+---------------------------------------------------------------------
+local tpBtn = makeButton("Teleport")
+tpBtn.Parent = frame
+
+tpBtn.MouseButton1Click:Connect(function()
+	if not char or not hum then return end
+
+	local hrp = char:FindFirstChild("HumanoidRootPart")
+	if not hrp then return end
+
+	local dirVector = Vector3.new()
+
+	if teleportDirection == "Forward" then
+		dirVector = cam.CFrame.LookVector
+	elseif teleportDirection == "Backward" then
+		dirVector = -cam.CFrame.LookVector
+	elseif teleportDirection == "Up" then
+		dirVector = Vector3.new(0,1,0)
+	elseif teleportDirection == "Down" then
+		dirVector = Vector3.new(0,-1,0)
+	end
+
+	hrp.CFrame = hrp.CFrame + dirVector * teleportDistance
+end)
+
+---------------------------------------------------------------------
+-- INFINITY JUMP
+---------------------------------------------------------------------
+local infBtn = makeButton("Infinity Jump: OFF")
+infBtn.Parent = frame
+
+infBtn.MouseButton1Click:Connect(function()
+	infinityJump = not infinityJump
+	if infinityJump then
+		infBtn.Text = "Infinity Jump: ON"
+	else
+		infBtn.Text = "Infinity Jump: OFF"
+	end
+end)
+
+UIS.JumpRequest:Connect(function()
+	if infinityJump and hum then
+		hum:ChangeState(Enum.HumanoidStateType.Jumping)
+	end
+end)
+
+---------------------------------------------------------------------
+-- FREECAM
+---------------------------------------------------------------------
+local freeBtn = makeButton("Freecam: ON")
+local disableFreeBtn = makeButton("Freecam: OFF")
+freeBtn.Parent = frame
+disableFreeBtn.Parent = frame
+
+freeBtn.MouseButton1Click:Connect(function()
+	freecamEnabled = true
+	cam.CameraType = Enum.CameraType.Scriptable
+end)
+
+disableFreeBtn.MouseButton1Click:Connect(function()
+	freecamEnabled = false
+	cam.CameraType = Enum.CameraType.Custom
+end)
+
+-- Movement for freecam
+local moveVec = Vector3.new()
+UIS.InputBegan:Connect(function(i,g)
+	if g then return end
+	if i.KeyCode == Enum.KeyCode.W then moveVec = Vector3.new(0,0,-1)
+	elseif i.KeyCode == Enum.KeyCode.S then moveVec = Vector3.new(0,0,1)
+	elseif i.KeyCode == Enum.KeyCode.A then moveVec = Vector3.new(-1,0,0)
+	elseif i.KeyCode == Enum.KeyCode.D then moveVec = Vector3.new(1,0,0)
+	end
+end)
+
+UIS.InputEnded:Connect(function(i)
+	moveVec = Vector3.new()
+end)
+
+RunService.RenderStepped:Connect(function(dt)
+	if freecamEnabled then
+		cam.CFrame = cam.CFrame + (cam.CFrame:VectorToWorldSpace(moveVec) * 2)
+	end
+end)
+
+---------------------------------------------------------------------
+-- GRAVITY SLIDER (simple)
+---------------------------------------------------------------------
+local gravityBox = Instance.new("TextBox")
+gravityBox.Size = UDim2.new(0, 240, 0, 32)
+gravityBox.Text = "Gravity (196)"
+gravityBox.PlaceholderText = "Enter number"
+gravityBox.BackgroundColor3 = Color3.fromRGB(35,35,45)
+gravityBox.TextColor3 = Color3.fromRGB(255,255,255)
+gravityBox.BorderSizePixel = 0
+Instance.new("UICorner", gravityBox).CornerRadius = UDim.new(0, 8)
+gravityBox.Parent = frame
+
+gravityBox.FocusLost:Connect(function()
+	local num = tonumber(gravityBox.Text)
+	if num then
+		workspace.Gravity = num
+		gravityBox.Text = "Gravity ("..num..")"
+	else
+		gravityBox.Text = "Gravity ("..workspace.Gravity..")"
+	end
+end)
+
+---------------------------------------------------------------------
+-- IMMUNITY BUTTON
+---------------------------------------------------------------------
+local immuneBtn = makeButton("Immunity: OFF")
+immuneBtn.Parent = frame
+
+immuneBtn.MouseButton1Click:Connect(function()
+	immuneEnabled = not immuneEnabled
+
+	if immuneEnabled then
+		immuneBtn.Text = "Immunity: ON"
+	else
+		immuneBtn.Text = "Immunity: OFF"
+	end
+end)
+
+-- Auto ForceField + Heal Loop
+task.spawn(function()
+	while true do
+		task.wait(0.2)
+		if immuneEnabled and char then
+			if not char:FindFirstChild("ForceField") then
+				Instance.new("ForceField", char)
+			end
+			if hum and hum.Health < hum.MaxHealth then
+				hum.Health = hum.MaxHealth
+			end
+		end
+	end
+end)
+
+---------------------------------------------------------------------
+-- R = MENU TOGGLE
+---------------------------------------------------------------------
+local visible = true
+UIS.InputBegan:Connect(function(i, g)
+	if g then return end
+	if i.KeyCode == Enum.KeyCode.R then
+		visible = not visible
+		frame.Visible = visible
+	end
+end)
+
+
+
+
+
+
+
+local player = game:GetService("Players").LocalPlayer
+local UIS = game:GetService("UserInputService")
+local character = player.Character or player.CharacterAdded:Wait()
+
+-- GUI Setup
+local gui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+gui.Name = "WallBypassUI"
+gui.ResetOnSpawn = false
+
+local frame = Instance.new("Frame", gui)
+frame.Size = UDim2.new(0, 200, 0, 130)
+frame.Position = UDim2.new(0.5, -100, 1, -160)
+frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+frame.Active = true
+frame.Draggable = true
+frame.Visible = true
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 10)
+Instance.new("UIStroke", frame).Color = Color3.fromRGB(255, 80, 80)
+
+-- Title
+local title = Instance.new("TextLabel", frame)
+title.Size = UDim2.new(1, 0, 0, 30)
+title.Text = "No Clip (V1) because still working"
+title.BackgroundTransparency = 1
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.Font = Enum.Font.GothamBold
+title.TextScaled = true
+
+-- Button Factory
+local function createButton(name, yPos)
+	local btn = Instance.new("TextButton", frame)
+	btn.Size = UDim2.new(0.8, 0, 0, 30)
+	btn.Position = UDim2.new(0.1, 0, yPos, 0)
+	btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+	btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	btn.Font = Enum.Font.Gotham
+	btn.TextScaled = true
+	btn.Text = name
+	Instance.new("UICorner", btn)
+	return btn
+end
+
+-- Bypass Only Barriers (named "Barrier")
+local barrierBypass = false
+local barrierBtn = createButton("Not selectet Error 404", 0.35)
+barrierBtn.MouseButton1Click:Connect(function()
+	barrierBypass = not barrierBypass
+	for _, part in pairs(workspace:GetDescendants()) do
+		if part:IsA("BasePart") and part.Name == "Barrier" then
+			part.CanCollide = not barrierBypass
+		end
+	end
+	barrierBtn.Text = barrierBypass and "Not selectet Error 404" or "Not selectet Error 404"
+end)
+
+-- Full NoClip (All Walls)
+local noclip = false
+local wallBtn = createButton("Durch Wände", 0.65)
+
+wallBtn.MouseButton1Click:Connect(function()
+	noclip = not noclip
+	wallBtn.Text = noclip and "✔ NoClip: AN" or "Durch Wände"
+end)
+
+-- Update NoClip state every frame
+game:GetService("RunService").Stepped:Connect(function()
+	if noclip then
+		local char = player.Character
+		if char then
+			for _, part in pairs(char:GetDescendants()) do
+				if part:IsA("BasePart") then
+					part.CanCollide = false
+				end
+			end
+		end
+	end
+end)
+
+-- Toggle Sichtbarkeit mit Taste R
+UIS.InputBegan:Connect(function(input, gpe)
+	if not gpe and input.KeyCode == Enum.KeyCode.R then
+		frame.Visible = not frame.Visible
+	end
+end)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+-- Mini Player Teleport & Multi-Keybind Boost Menü
+-- Für eigene Map / Developer-Tools
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+
+-- Einstellungen
+local menuVisible = true
+local screenGuiName = "MiniTeleportMenu"
+
+-- Keybinds (initial nil = nicht gesetzt)
+local keybindMini = nil
+local keybindNormal = nil
+local keybindExtrem = nil
+
+-- Wartezustände zum Setzen der Keybinds
+local waitingForMini = false
+local waitingForNormal = false
+local waitingForExtrem = false
+
+-- Hilfsfunktion: löse Boost aus
+local function doBoost(strength)
+    local char = player.Character
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+    -- Setze Velocity kurz — wirkt als Schub nach vorne
+    hrp.Velocity = hrp.CFrame.LookVector * strength
+end
+
+-- Entferne altes GUI falls vorhanden (sicher)
+local existing = player:FindFirstChild("PlayerGui") and player.PlayerGui:FindFirstChild(screenGuiName)
+if existing then
+    existing:Destroy()
+end
+
+-- GUI Aufbau (kompakt, oben links)
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = screenGuiName
+screenGui.ResetOnSpawn = false -- bleibt nach Respawn erhalten
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0,120,0,260) -- sehr klein
+frame.Position = UDim2.new(0,10,0,10) -- oben links
+frame.BackgroundColor3 = Color3.fromRGB(40,40,50)
+frame.BorderSizePixel = 0
+frame.Parent = screenGui
+frame.ClipsDescendants = true
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1,0,0,20)
+title.Position = UDim2.new(0,0,0,0)
+title.BackgroundTransparency = 1
+title.Text = "Players"
+title.TextColor3 = Color3.fromRGB(255,255,255)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 16
+title.Parent = frame
+
+-- Container für dynamische Spielerliste
+local playerList = Instance.new("Frame")
+playerList.Size = UDim2.new(1,-8,0,150)
+playerList.Position = UDim2.new(0,4,0,25)
+playerList.BackgroundTransparency = 1
+playerList.Parent = frame
+
+-- Funktion: aktualisiere Spielerliste
+local function updatePlayerList()
+    -- entfernt Kinder (Buttons)
+    playerList:ClearAllChildren()
+    local yPos = 0
+    for _, plr in pairs(Players:GetPlayers()) do
+        if plr ~= player then
+            local btn = Instance.new("TextButton")
+            btn.Size = UDim2.new(1,0,0,16)
+            btn.Position = UDim2.new(0,0,0,yPos)
+            btn.BackgroundColor3 = Color3.fromRGB(70,70,80)
+            btn.BorderSizePixel = 0
+            btn.Font = Enum.Font.Gotham
+            btn.TextSize = 12
+            btn.TextColor3 = Color3.fromRGB(255,255,255)
+            btn.Text = plr.Name
+            btn.Parent = playerList
+
+            btn.MouseButton1Click:Connect(function()
+                local myChar = player.Character
+                local targetChar = plr.Character
+                if myChar and targetChar then
+                    local hrp = myChar:FindFirstChild("HumanoidRootPart")
+                    local targetHRP = targetChar:FindFirstChild("HumanoidRootPart")
+                    if hrp and targetHRP then
+                        -- Teleportiere dich hinter den Zielspieler
+                        hrp.CFrame = targetHRP.CFrame + (targetHRP.CFrame.LookVector * -3)
+                    end
+                end
+            end)
+
+            yPos = yPos + 18
+            -- falls mehr Spieler als Platz, es wird einfach überlappt (sehr mini-layout)
+        end
+    end
+end
+
+-- initiale Liste + Events für Änderungen
+updatePlayerList()
+Players.PlayerAdded:Connect(updatePlayerList)
+Players.PlayerRemoving:Connect(updatePlayerList)
+
+-- Boost-Buttons (klein)
+local function createBoostButton(name, yPos, strength)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1,-10,0,20)
+    btn.Position = UDim2.new(0,5,0,yPos)
+    btn.BackgroundColor3 = Color3.fromRGB(80,50,50)
+    btn.BorderSizePixel = 0
+    btn.Font = Enum.Font.Gotham
+    btn.TextSize = 12
+    btn.TextColor3 = Color3.fromRGB(255,255,255)
+    btn.Text = name
+    btn.Parent = frame
+
+    btn.MouseButton1Click:Connect(function()
+        doBoost(strength)
+    end)
+
+    return btn
+end
+
+-- Erzeuge die drei Boost Buttons (Positionen abgestimmt an frame größe)
+local miniBtn = createBoostButton("Mini Boost", 180, 50)
+local normalBtn = createBoostButton("Normal Boost", 205, 100)
+local extremBtn = createBoostButton("Extrem Boost", 230, 200)
+
+-- Set-Key Buttons rechts neben die Boosts
+local function createSetKeyButton(posY)
+    local setBtn = Instance.new("TextButton")
+    setBtn.Size = UDim2.new(0, 50, 0, 20)
+    setBtn.Position = UDim2.new(1, -55, 0, posY)
+    setBtn.BackgroundColor3 = Color3.fromRGB(60,90,120)
+    setBtn.BorderSizePixel = 0
+    setBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    setBtn.Font = Enum.Font.Gotham
+    setBtn.TextSize = 11
+    setBtn.Text = "Set"
+    setBtn.Parent = frame
+    return setBtn
+end
+
+local miniKeyBtn = createSetKeyButton(180)
+local normalKeyBtn = createSetKeyButton(205)
+local extremKeyBtn = createSetKeyButton(230)
+
+-- Klick-Handler um in Wartezustand zu gehen
+miniKeyBtn.MouseButton1Click:Connect(function()
+    miniKeyBtn.Text = "Press"
+    waitingForMini = true
+end)
+normalKeyBtn.MouseButton1Click:Connect(function()
+    normalKeyBtn.Text = "Press"
+    waitingForNormal = true
+end)
+extremKeyBtn.MouseButton1Click:Connect(function()
+    extremKeyBtn.Text = "Press"
+    waitingForExtrem = true
+end)
+
+-- Input Handling: Setzen der Keybinds & Auslösen der Boosts
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+
+    -- nur Keyboard-Eingaben berücksichtigen
+    if input.UserInputType ~= Enum.UserInputType.Keyboard then
+        return
+    end
+
+    -- Wenn wir in einem Wartezustand sind, setze den entsprechenden Keybind
+    if waitingForMini then
+        if input.KeyCode ~= Enum.KeyCode.Unknown then
+            keybindMini = input.KeyCode
+            miniKeyBtn.Text = input.KeyCode.Name
+        end
+        waitingForMini = false
+        return
+    end
+
+    if waitingForNormal then
+        if input.KeyCode ~= Enum.KeyCode.Unknown then
+            keybindNormal = input.KeyCode
+            normalKeyBtn.Text = input.KeyCode.Name
+        end
+        waitingForNormal = false
+        return
+    end
+
+    if waitingForExtrem then
+        if input.KeyCode ~= Enum.KeyCode.Unknown then
+            keybindExtrem = input.KeyCode
+            extremKeyBtn.Text = input.KeyCode.Name
+        end
+        waitingForExtrem = false
+        return
+    end
+
+    -- Falls kein Wartezustand: prüfe ob gedrückte Taste einem Keybind entspricht -> führe Boost aus
+    if keybindMini and input.KeyCode == keybindMini then
+        doBoost(50)
+    end
+    if keybindNormal and input.KeyCode == keybindNormal then
+        doBoost(100)
+    end
+    if keybindExtrem and input.KeyCode == keybindExtrem then
+        doBoost(200)
+    end
+
+    -- Standard Toggle für das Menü (R) — unverändert
+    if input.KeyCode == Enum.KeyCode.R then
+        menuVisible = not menuVisible
+        frame.Visible = menuVisible
+    end
+end)
+
+-- Stelle sicher, dass Buttons nach Respawn noch korrekt referenziert werden
+-- (GUI bleibt erhalten durch ResetOnSpawn = false; falls GUI neuparented werden sollte, kann updatePlayerList erneut aufgerufen werden)
+player.CharacterAdded:Connect(function()
+    -- kurze Verzögerung damit Charakterteile existieren, falls nötig
+    wait(0.3)
+    -- keine GUI-Änderungen nötig — Keybinds und Buttons bleiben erhalten
+end)
+
+
+
+
+
+
+
+
+-- Crazy Admin Panel Logo – Rot + Glow + Outline (ohne Schatten)
+-- LocalScript in StarterGui
+
+local player = game.Players.LocalPlayer
+local gui = Instance.new("ScreenGui")
+gui.Name = "CrazyAdminLogo"
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
+
+-- Logo Container
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 320, 0, 60)
+frame.Position = UDim2.new(0.5, -160, 0, 10) -- Mitte oben
+frame.BackgroundColor3 = Color3.fromRGB(50, 0, 0)
+frame.BorderSizePixel = 0
+frame.BackgroundTransparency = 0.2
+frame.Parent = gui
+
+-- Runde Ecken
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 12)
+corner.Parent = frame
+
+-- Umrandung
+local stroke = Instance.new("UIStroke")
+stroke.Thickness = 3
+stroke.Color = Color3.fromRGB(255, 60, 60)
+stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+stroke.Parent = frame
+
+-- Glow Effekt
+local glow = Instance.new("ImageLabel")
+glow.Size = UDim2.new(1, 40, 1, 40)
+glow.Position = UDim2.new(0.5, -20, 0.5, -20)
+glow.Image = "rbxassetid://4999988390"
+glow.ImageColor3 = Color3.fromRGB(255, 0, 0)
+glow.BackgroundTransparency = 1
+glow.ImageTransparency = 0.3
+glow.ZIndex = 0
+glow.Parent = frame
+
+-- Text
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 1, 0)
+title.BackgroundTransparency = 1
+title.Text = "Champs SzPremium Cheat V2"
+title.Font = Enum.Font.GothamBlack
+title.TextScaled = true
+title.TextColor3 = Color3.fromRGB(255, 0, 0)
+title.ZIndex = 2
+title.Parent = frame
+
+-- Weißer Outline Text
+local outline = Instance.new("TextLabel")
+outline.Size = title.Size
+outline.Position = title.Position
+outline.BackgroundTransparency = 1
+outline.Text = title.Text
+outline.Font = title.Font
+outline.TextScaled = title.TextScaled
+outline.TextColor3 = Color3.fromRGB(255, 255, 255)
+outline.ZIndex = 1
+outline.Parent = frame
+
+-- Start unsichtbar für Animation
+frame.BackgroundTransparency = 1
+title.TextTransparency = 1
+outline.TextTransparency = 1
+glow.ImageTransparency = 1
+stroke.Thickness = 0
+
+task.wait(0.2)
+
+local tweenService = game:GetService("TweenService")
+
+-- Frame einblenden
+tweenService:Create(frame, TweenInfo.new(0.4, Enum.EasingStyle.Quad), {
+    BackgroundTransparency = 0.2
+}):Play()
+
+-- Text einblenden
+tweenService:Create(title, TweenInfo.new(0.4), {
+    TextTransparency = 0
+}):Play()
+
+tweenService:Create(outline, TweenInfo.new(0.4), {
+    TextTransparency = 0
+}):Play()
+
+-- Glow einblenden
+tweenService:Create(glow, TweenInfo.new(0.4), {
+    ImageTransparency = 0.3
+}):Play()
+
+-- Umrandung einblenden
+tweenService:Create(stroke, TweenInfo.new(0.4), {
+    Thickness = 3
+}):Play()
+
+
+
+
+
+
+
+
+
+
+--// UI SETUP //--
+
+local player = game.Players.LocalPlayer
+local gui = Instance.new("ScreenGui")
+gui.Parent = player:WaitForChild("PlayerGui")
+gui.ResetOnSpawn = false
+
+local TweenService = game:GetService("TweenService")
+local UIS = game:GetService("UserInputService")
+
+-- MAIN FRAME
+local Frame = Instance.new("Frame")
+Frame.Size = UDim2.new(0,180,0,135)
+Frame.Position = UDim2.new(1,-200,0,20)
+Frame.BackgroundColor3 = Color3.fromRGB(10,10,10)
+Frame.BackgroundTransparency = 0.2
+Frame.BorderSizePixel = 0
+Frame.Parent = gui
+
+-- ROUNDING
+local UICorner = Instance.new("UICorner", Frame)
+UICorner.CornerRadius = UDim.new(0,12)
+
+-- OUTER NEON GLOW
+local UIStroke = Instance.new("UIStroke", Frame)
+UIStroke.Thickness = 3
+UIStroke.Color = Color3.fromRGB(255,0,0)
+UIStroke.Transparency = 0.1
+
+-- EXTRA GLOW FRAME
+local Glow = Instance.new("ImageLabel", Frame)
+Glow.Size = UDim2.new(1,20,1,20)
+Glow.Position = UDim2.new(0,-10,0,-10)
+Glow.BackgroundTransparency = 1
+Glow.Image = "rbxassetid://4996891970"
+Glow.ImageColor3 = Color3.fromRGB(255,0,0)
+Glow.ImageTransparency = 0.7
+Glow.ZIndex = -10
+
+-- // TEXTBOX // --
+local InputBox = Instance.new("TextBox")
+InputBox.Size = UDim2.new(1,-20,0,26)
+InputBox.Position = UDim2.new(0,10,0,6)
+InputBox.BackgroundColor3 = Color3.fromRGB(20,20,20)
+InputBox.TextColor3 = Color3.fromRGB(255,255,255)
+InputBox.PlaceholderText = "JumpPower..."
+InputBox.Text = ""
+InputBox.BorderSizePixel = 0
+InputBox.Parent = Frame
+
+Instance.new("UICorner", InputBox).CornerRadius = UDim.new(0,8)
+
+-- // SLIDER BACK // --
+local SliderBack = Instance.new("Frame")
+SliderBack.Size = UDim2.new(1,-20,0,10)
+SliderBack.Position = UDim2.new(0,10,0,40)
+SliderBack.BackgroundColor3 = Color3.fromRGB(30,0,0)
+SliderBack.BorderSizePixel = 0
+SliderBack.Parent = Frame
+Instance.new("UICorner", SliderBack).CornerRadius = UDim.new(0,5)
+
+-- GLOW LINE
+local GlowLine = Instance.new("Frame")
+GlowLine.Size = UDim2.new(1,0,0,2)
+GlowLine.Position = UDim2.new(0,0,1,-1)
+GlowLine.BackgroundColor3 = Color3.fromRGB(255,0,0)
+GlowLine.BorderSizePixel = 0
+GlowLine.Parent = SliderBack
+
+-- SLIDER BUTTON
+local SliderBtn = Instance.new("Frame")
+SliderBtn.Size = UDim2.new(0,14,0,14)
+SliderBtn.Position = UDim2.new(0,0, -0.2, 0)
+SliderBtn.BackgroundColor3 = Color3.fromRGB(255,30,30)
+SliderBtn.BorderSizePixel = 0
+SliderBtn.Parent = SliderBack
+Instance.new("UICorner", SliderBtn).CornerRadius = UDim.new(1,0)
+
+local SliderGlow = Instance.new("UIStroke", SliderBtn)
+SliderGlow.Thickness = 2
+SliderGlow.Color = Color3.fromRGB(255,0,0)
+
+-- // BUTTONS // --
+local function MakeButton(txt, posX)
+	local B = Instance.new("TextButton")
+	B.Size = UDim2.new(0.5,-15,0,28)
+	B.Position = UDim2.new(posX, posX == 0 and 10 or -10, 0, 65)
+	B.BackgroundColor3 = Color3.fromRGB(20,20,20)
+	B.TextColor3 = Color3.fromRGB(255,255,255)
+	B.Text = txt
+	B.BorderSizePixel = 0
+	B.Parent = Frame
+	Instance.new("UICorner", B).CornerRadius = UDim.new(0,8)
+
+	-- Hover glow
+	B.MouseEnter:Connect(function()
+		TweenService:Create(B, TweenInfo.new(.2), {BackgroundColor3 = Color3.fromRGB(60,0,0)}):Play()
+	end)
+	B.MouseLeave:Connect(function()
+		TweenService:Create(B, TweenInfo.new(.2), {BackgroundColor3 = Color3.fromRGB(20,20,20)}):Play()
+	end)
+
+	return B
+end
+
+local Plus5 = MakeButton("+5",0)
+local Minus5 = MakeButton("-5",0.5)
+
+-- // LOGIC // --
+local char = player.Character or player.CharacterAdded:Wait()
+local humanoid = char:WaitForChild("Humanoid")
+
+local minVal = 0
+local maxVal = 200
+
+local function SetJump(v)
+	v = math.clamp(v,minVal,maxVal)
+	humanoid.JumpPower = v
+	InputBox.Text = tostring(v)
+	SliderBtn.Position = UDim2.new(v/maxVal,-7,-0.2,0)
+end
+
+-- DRAG SLIDER
+local dragging = false
+
+SliderBack.InputBegan:Connect(function(i)
+	if i.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = true
+	end
+end)
+
+UIS.InputEnded:Connect(function(i)
+	if i.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = false
+	end
+end)
+
+UIS.InputChanged:Connect(function(i)
+	if dragging then
+		local percent = math.clamp((i.Position.X - SliderBack.AbsolutePosition.X) / SliderBack.AbsoluteSize.X, 0,1)
+		SetJump(percent * maxVal)
+
+		-- animate glow
+		SliderGlow.Thickness = 4
+		TweenService:Create(SliderGlow,TweenInfo.new(.2),{Thickness = 2}):Play()
+	end
+end)
+
+
+-- BUTTONS
+Plus5.MouseButton1Click:Connect(function()
+	SetJump(humanoid.JumpPower + 5)
+end)
+
+Minus5.MouseButton1Click:Connect(function()
+	SetJump(humanoid.JumpPower - 5)
+end)
+
+-- TEXTBOX INPUT
+InputBox.FocusLost:Connect(function()
+	local n = tonumber(InputBox.Text)
+	if n then SetJump(n) end
+end)
+
+-- TOGGLE MENU WITH R
+local Visible = true
+UIS.InputBegan:Connect(function(i)
+	if i.KeyCode == Enum.KeyCode.R then
+		Visible = not Visible
+		TweenService:Create(Frame, TweenInfo.new(.25), {
+			BackgroundTransparency = Visible and 0.2 or 1
+		}):Play()
+		Frame.Visible = Visible
+	end
+end)
+
+SetJump(50)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+loadstring(game:HttpGet("https://raw.githubusercontent.com/LiarRise/FLN-X/refs/heads/main/README.md"))()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+-- LocalScript
+-- FULLSCREEN LOCK SCREEN WITH CODES
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local ContextActionService = game:GetService("ContextActionService")
+
+local player = Players.LocalPlayer
+
+-- 50 FREISCHALT-CODES
+local CODES = {
+	"A9F3K", "Z7XQ2", "LMN45", "R8T2P", "QW9E4",
+	"X3C7V", "B5N8M", "JH29K", "PLM88", "WQX77",
+	"DD45Q", "AA99Z", "CXV12", "OPL76", "TGB44",
+	"YHN21", "MNB90", "LKJ66", "RTY55", "FGH33",
+	"UJM87", "IKL09", "QAZ11", "WSX22", "EDC33",
+	"RFV44", "TGB55", "YHN66", "UJM77", "IKL88",
+	"OPP01", "ZXM02", "CVB03", "ASD04", "DFG05",
+	"GHJ06", "JKL07", "QWE08", "ERT09", "TYU10",
+	"UIO11", "PAS12", "LKM13", "NBV14", "CXZ15"
+}
+
+-- INPUT BLOCKIEREN
+local function blockInput()
+	ContextActionService:BindAction(
+		"BlockAll",
+		function() return Enum.ContextActionResult.Sink end,
+		false,
+		unpack(Enum.PlayerActions:GetEnumItems())
+	)
+end
+
+local function unblockInput()
+	ContextActionService:UnbindAction("BlockAll")
+end
+
+blockInput()
+
+-- GUI
+local gui = Instance.new("ScreenGui")
+gui.IgnoreGuiInset = true
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.fromScale(1,1)
+frame.Position = UDim2.fromScale(0,0)
+frame.BackgroundColor3 = Color3.fromRGB(0,0,0)
+frame.Parent = gui
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.fromScale(1,0.2)
+title.Position = UDim2.fromScale(0,0.25)
+title.Text = "ZUGRIFF GESPERRT"
+title.TextColor3 = Color3.new(1,1,1)
+title.TextScaled = true
+title.Font = Enum.Font.GothamBlack
+title.BackgroundTransparency = 1
+title.Parent = frame
+
+local box = Instance.new("TextBox")
+box.Size = UDim2.fromScale(0.4,0.08)
+box.Position = UDim2.fromScale(0.3,0.5)
+box.PlaceholderText = "CODE EINGEBEN + ENTER"
+box.Text = ""
+box.TextScaled = true
+box.Font = Enum.Font.GothamBold
+box.BackgroundColor3 = Color3.fromRGB(30,30,30)
+box.TextColor3 = Color3.new(1,1,1)
+box.ClearTextOnFocus = false
+box.Parent = frame
+
+local corner = Instance.new("UICorner", box)
+corner.CornerRadius = UDim.new(0.25,0)
+
+-- CODE CHECK
+local function isValid(code)
+	for _,v in ipairs(CODES) do
+		if code == v then
+			return true
+		end
+	end
+	return false
+end
+
+box.FocusLost:Connect(function(enter)
+	if not enter then return end
+
+	if isValid(box.Text) then
+		unblockInput()
+		gui:Destroy()
+	else
+		box.Text = ""
+		box.PlaceholderText = "FALSCHER CODE"
+	end
+end)
+
+
+
+
+
+
+
